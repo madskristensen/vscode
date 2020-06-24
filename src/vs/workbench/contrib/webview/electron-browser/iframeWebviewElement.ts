@@ -16,7 +16,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { WebviewThemeDataProvider } from 'vs/workbench/contrib/webview/browser/themeing';
 import { WebviewContentOptions, WebviewExtensionDescription, WebviewOptions } from 'vs/workbench/contrib/webview/browser/webview';
 import { IFrameWebview } from 'vs/workbench/contrib/webview/browser/webviewElement';
-import { WebviewResourceRequestManager } from 'vs/workbench/contrib/webview/electron-browser/webviewResourceRequestManager';
+import { rewriteVsCodeResourceUrls, WebviewResourceRequestManager } from 'vs/workbench/contrib/webview/electron-browser/resourceLoading';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
 
 /**
@@ -50,7 +50,7 @@ export class ElectronIframeWebview extends IFrameWebview {
 	}
 
 	protected initElement() {
-		this.element!.src = `${Schemas.vscodeWebview}://${this.id}/index.html?id=${this.id}&bnoServiceWorker`;
+		this.element!.src = `${Schemas.vscodeWebview}://${this.id}/index.html?id=${this.id}&platform=electron`;
 	}
 
 	public set contentOptions(options: WebviewContentOptions) {
@@ -79,16 +79,6 @@ export class ElectronIframeWebview extends IFrameWebview {
 	}
 
 	protected preprocessHtml(value: string): string {
-		return value
-			.replace(/(["'])vscode-resource:(\/\/([^\s\/'"]+?)(?=\/))?([^\s'"]+?)(["'])/gi, (match, startQuote, _1, scheme, path, endQuote) => {
-				if (scheme) {
-					return `${startQuote}${Schemas.vscodeWebviewResource}://${this.id}/${scheme}${path}${endQuote}`;
-				}
-				if (!path.startsWith('//')) {
-					// Add an empty authority if we don't already have one
-					path = '//' + path;
-				}
-				return `${startQuote}${Schemas.vscodeWebviewResource}://${this.id}/file${path}${endQuote}`;
-			});
+		return rewriteVsCodeResourceUrls(this.id, value);
 	}
 }
